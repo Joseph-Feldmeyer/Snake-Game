@@ -103,7 +103,7 @@ class Snack():
 class Network():
 
     def __init__(self, shape):
-        self.num_layers = len(sizes)
+        self.num_layers = len(shape)
         self.shape = shape
         self.biases = [np.random.randn(y, 1) for y in shape[1:]]
         self.weights = [ np.random.randn(y,x)
@@ -126,12 +126,15 @@ class Generation():
         of the fitness of each network, and a generation number
         """
         self.nn_list = nn_list
-        self.fit_list = np.zeros(len(nn_list), 1) 
+        self.fit_list = np.zeros((len(nn_list), 1))  
         self.gen = gen
 
     def evaluate(self):
         """ Find and return the top 5 nns in terms of fitness """
-        pass
+        top_5_index = np.argpartition(self.fit_list, -5)[-5:]  # Need to fix this
+        return self.nn_list[top_5_index]  
+
+    
 
 
 # Basic Functions
