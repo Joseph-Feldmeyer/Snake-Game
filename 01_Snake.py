@@ -38,13 +38,13 @@ class Snake():
                                  (255,255,255),
                                  ( self.body[i][0], self.body[i][1],
                                    CUBE_WIDTH, CUBE_WIDTH )
-                                 )
+                )
             else:
                 pygame.draw.rect(surface,
                                  (0,255,0),
                                  ( self.body[i][0], self.body[i][1],
                                    CUBE_WIDTH, CUBE_WIDTH )
-                                 )
+                )
 
     def moveSnake(self, direction, snack = False):
         next_block = [ self.body[0][0]+direction[0]*CUBE_WIDTH,
@@ -66,7 +66,7 @@ class Snack():
                          (255,0,0),
                          ( self.body[0], self.body[1],
                            CUBE_WIDTH, CUBE_WIDTH )
-                         )
+        )
 
 
 # Basic Functions

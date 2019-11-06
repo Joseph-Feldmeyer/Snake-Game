@@ -10,26 +10,41 @@ Basic snake game contains following:
 - def playGame
 
 Need to add following: 
-- class NN 
+- class Network 
+    - def feedforward: returns the output of the network 
 - class Generation
+    - def interpopulate: returns new nn_list to be used in next gen 
 
 
+main(): 
+  - initialize backgrounds: 
+  - while GEN < NN_MAX_GEN: 
+    - if GEN == 1: 
+      - create 100 random NN's 
+    
+    - for nn in gen.nn_list: 
+      - gen.fitness(nn) = nn.run_game()
 
-gen = 0: 
-create 100 NNs 
-assign random weights and biases to all 
+    - next_nn_list = gen.interpopulate()
+    - GEN += 1
+    - gen = Generation(next_nn_list, GEN)
 
-for nn in NN: 
-    nn.play game
-    nn.fitness = score + len(travelled) 
+    - print(GEN: best fitness score) 
 
-select 5 of best fitness
-for nn in best5: 
-    interpopulate the nns 
-for nn in interpopulated + best5 (25nns in total): 
-    make 3 more random adjustments 
+run_game(nn): 
+  - create snake 
+  - create snack 
+  - score = 0 
+  - for event: 
+    - inputs = (length to walls) (length to snack) 
+    - output = nn.feedforward(inputs) 
+    - move based off of output 
+    - moveCounter -= 1
+    - score += 1
 
-gen += 1
+    - if snack: score += 200 
+    - if death: return score
+
 
 '''
 
@@ -37,6 +52,7 @@ gen += 1
 import pygame
 import random
 import numpy as np
+import itertools
 
 # Global Variables
 SCREEN_WIDTH = 500
@@ -126,13 +142,75 @@ class Generation():
         of the fitness of each network, and a generation number
         """
         self.nn_list = nn_list
-        self.fit_list = np.zeros((len(nn_list), 1))  
+        self.fit_list = np.zeros(len(nn_list))  
         self.gen = gen
 
     def evaluate(self):
         """ Find and return the top 5 nns in terms of fitness """
-        top_5_index = np.argpartition(self.fit_list, -5)[-5:]  # Need to fix this
-        return self.nn_list[top_5_index]  
+        top_5_index = np.argpartition(self.fit_list, -5)[-5:]  
+        return np.take(self.nn_list, top_5_index)
+
+    def create_child(self, perm):
+        perm1, perm2 = perm[0], perm[1]
+
+        new_NN = Network(perm1.shape) 
+        
+        for i in range(len(perm1.biases)):
+            for j in range(len(perm1.biases[i])):
+                if j <= len(perm1.biases)//2:
+                    new_NN.biases[i][j] = perm1.biases[i][j]
+                else:
+                    new_NN.biases[i][j] = perm2.biases[i][j]
+
+        for i in range(len(perm1.weights)):
+            for j in range(len(perm1.weights[i])):
+                if j <= len(perm1.weights)//2:
+                    new_NN.biases[i][j] = perm1.biases[i][j]
+                else:
+                    new_NN.biases[i][j] = perm2.biases[i][j]
+
+        return new_NN
+
+
+    def interpopulate(self):
+        """ 
+        Return a new nn_list with the following: 
+        - top 5 NN
+        - top 5 x 4 = 20 interpopulated NN
+        - 3 variations each of the above 
+        """
+
+        # Top 5
+        next_gen_NN = top_5_nn = self.evaluate()
+        
+        # 20 children
+        for i in itertools.permutations(top_5_nn, 2):
+            next_gen_NN = np.append(next_gen_NN, self.create_child(i))
+
+        # 75 slight mutations
+        for i in range(3):
+            for j in range(25):
+                new_NN = Network(next_gen_NN[j].shape)
+                new_NN.biases = next_gen_NN[j].biases
+                new_NN.weights = next_gen_NN[j].weights
+
+                for k in range(len(new_NN.biases)):
+                    for l in range(len(new_NN.biases[k])):
+                        if np.random.randn() > 3:
+                            new_NN.biases[k][l] = np.random.randn()
+
+                for k in range(len(new_NN.weights)):
+                    for l in range(len(new_NN.weights[k])):
+                        if np.random.randn() > 3:
+                            new_NN.weights[k][l] = np.random.randn()
+
+                next_gen_NN = np.append(next_gen_NN, new_NN) 
+            
+        return(next_gen_NN) 
+
+    
+        
+        
 
     
 
@@ -232,7 +310,33 @@ def main():
         
 ## Run the main function
 if __name__ == "__main__":
-    main()                      # Call the funciton
+    # main()                      # Call the funciton
+
+
+    GEN = 1
+
+    nn_list = []
     
+    for i in range(5):
+        nn_list.append(Network([8, 20, 20, 4]))
+
+    gen0 = Generation(nn_list, GEN)
+
+    for i in range(5):
+        gen0.fit_list[i] = np.random.randn()
+
+
+    aa = gen0.interpopulate()
+
+    print(len(aa))
+    
+
+
+
+
+
+
+
+
 
 
