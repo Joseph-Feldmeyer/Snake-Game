@@ -56,15 +56,15 @@ import itertools
 import math
 
 # Global Variables
-SCREEN_WIDTH = 300
+SCREEN_WIDTH = 600
 CUBE_WIDTH = 20
 
 # Neural Network variables:
-NN_SHAPE = [ 8, 20, 20, 4 ]
-NN_POPULATION = 1000             # Number of populations in each generation
+NN_SHAPE = [ 32, 50, 4 ]
+NN_POPULATION = 100             # Number of populations in each generation
 NN_BEST_NUM = 5                 # Number of best fitness NNs to carry to next generation 
 NN_MAX_GEN = 200                # Number of generations
-NN_MAX_MOVES = 50              # Maximum number of available moves assigned at the beginning of the game
+NN_MAX_MOVES = 200              # Maximum number of available moves assigned at the beginning of the game
 NN_MAX_SCORE = SCREEN_WIDTH**2 / CUBE_WIDTH**2  # Maximum possible score
 GEN = 1                         # Start at 1st generation
 
@@ -168,7 +168,7 @@ class Generation():
 
     def evaluate(self):
         """ Find and return the top 5 nns in terms of fitness """
-        top_5_index = np.argpartition(self.fit_list, -25)[-25:]  
+        top_5_index = np.argpartition(self.fit_list, -10)[-10:]  
         return np.take(self.nn_list, top_5_index)
 
     def create_child(self, perm):
@@ -183,13 +183,9 @@ class Generation():
         #         else:
         #             new_NN.biases[i][j] = perm2.biases[i][j]
 
-        for i in range(len(perm1.weights)):
-            for j in range(len(perm1.weights[i])):
-                if j <= len(perm1.weights[i])//2:
-                    new_NN.biases[i][j] = perm1.biases[i][j]
-                else:
-                    new_NN.biases[i][j] = perm2.biases[i][j]
-
+        for i in range(len(perm1.weights)): 
+            new_NN.weights[i] = (perm1.weights[i] + perm2.weights[i]) * 0.5
+                
         return new_NN
 
 
@@ -202,27 +198,28 @@ class Generation():
         """
 
         # Top 5
-        next_gen_NN = top_5_nn = self.evaluate()
+        next_gen_NN = self.evaluate()
+        top_5_nn = next_gen_NN.copy()
         
         # 20 children
-        # for i in itertools.permutations(top_5_nn, 2):
-        #     next_gen_NN = np.append(next_gen_NN, self.create_child(i))
+        for i in itertools.combinations(top_5_nn, 2):
+            next_gen_NN = np.append(next_gen_NN, self.create_child(i))
 
         # 75 slight mutations
-        for i in range(40):
+        for i in range(2):
             for j in range(25):
-                new_NN = Network(next_gen_NN[j].shape)
+                new_NN = Network(NN_SHAPE)
                 new_NN.biases = next_gen_NN[j].biases
                 new_NN.weights = next_gen_NN[j].weights
 
                 for k in range(len(new_NN.biases)):
                     for l in range(len(new_NN.biases[k])):
-                        if np.random.randn() > 3:
+                        if np.random.randn() > 1.5:
                             new_NN.biases[k][l] = np.random.randn()
 
                 for k in range(len(new_NN.weights)):
                     for l in range(len(new_NN.weights[k])):
-                        if np.random.randn() > 3:
+                        if np.random.randn() > 1.5:
                             new_NN.weights[k][l] = np.random.randn()
 
                 next_gen_NN = np.append(next_gen_NN, new_NN) 
@@ -261,7 +258,7 @@ def main():
     if GEN == 1:
         nn_list = []
         for _ in range(100):
-            nn_list.append(Network( [27, 20, 20, 4] ))
+            nn_list.append(Network( NN_SHAPE ))
         gen = Generation(nn_list, GEN)
 
     while GEN <= NN_MAX_GEN: 
@@ -269,18 +266,38 @@ def main():
             gen.fit_list[i] = run_game(nn, background)
 
         next_nn_list = gen.interpopulate()
-        print("                                                 ", GEN, ": Best finess score was ", max(gen.fit_list))
+        print("                                                 ",
+              GEN, ": Best finess score was : ", gen.fit_list[np.argmax(gen.fit_list)], " - ",
+              "Average: ", np.mean(gen.fit_list))
+
+        show = run_game(gen.nn_list[np.argmax(gen.fit_list)], background, 30)
+        print("This: ", show)
+        
         GEN += 1
         gen = Generation(next_nn_list, GEN)
 
-def run_game(nn, background):
+def run_game(nn, background, gameTime = 0):
     global s, snack 
     # Clock
     clock = pygame.time.Clock()
-    # Create snake
-    s = Snake( [ [60,60] ] )
-    # Create first snack
-    snack = Snack( [200,200] )
+
+    # Create first snake and snack 
+    
+    # Find all empty cells:
+    empty_cells = [ [x*CUBE_WIDTH, y*CUBE_WIDTH]
+                    for x in range(SCREEN_WIDTH//CUBE_WIDTH)
+                        for y in range(SCREEN_WIDTH//CUBE_WIDTH)  ]
+
+    s = Snake( [random.choice(empty_cells)] )
+    
+    for body_part in s.body:
+        index = empty_cells.index(body_part)
+        empty_cells.pop(index)
+
+    # Choose a random empty cell
+    snack_x, snack_y = random.choice(empty_cells) 
+    # New snack
+    snack = Snack( [snack_x, snack_y] )
 
     # Score
     score = 0
@@ -291,26 +308,42 @@ def run_game(nn, background):
     while True:
 
         # Slow down the game
-        # clock.tick(300)
+        if gameTime != 0: 
+            clock.tick(gameTime)
 
         inputs = s.area_around()
+        inputs = np.append(inputs, (s.body[0][0] - snack.body[0]) / SCREEN_WIDTH)
+        inputs = np.append(inputs, (s.body[0][1] - snack.body[1]) / SCREEN_WIDTH)
         inputs = np.append(inputs, distance_to_snack(s, snack))
-        inputs = np.append(inputs, angle_to_snack(s, snack))
+
+        # If snack is up:
+        if (s.body[0][0] - snack.body[0] == CUBE_WIDTH and s.body[0][1] - snack.body[1] == 0):
+            inputs = append_snack_next(inputs, 0)
+        elif (s.body[0][0] - snack.body[0] == -CUBE_WIDTH and s.body[0][1] - snack.body[1] == 0):
+            inputs = append_snack_next(inputs, 1)
+        elif (s.body[0][0] - snack.body[0] == 0 and s.body[0][1] - snack.body[1] == CUBE_WIDTH):
+            inputs = append_snack_next(inputs, 2)
+        elif (s.body[0][0] - snack.body[0] == 0 and s.body[0][1] - snack.body[1] == -CUBE_WIDTH):
+            inputs = append_snack_next(inputs, 3)
+        else: 
+            inputs = append_snack_next(inputs, 4)
+            
+            
 
         output = nn.feedforward(inputs)
 
         # Find direction
         direction = np.argmax(output)
 
-        # Lose method: (0) Face itself
-        if (direction == 0 and s.direction == ( 1, 0)):
-            return score
-        elif (direction == 1 and s.direction == (-1, 0)):
-            return score
-        elif (direction == 2 and s.direction == ( 0, 1)):
-            return score
-        elif (direction == 3 and s.direction == ( 0,-1)):
-            return score
+        # # Lose method: (0) Face itself
+        # if (direction == 0 and s.direction == ( 1, 0)):
+        #     return score
+        # elif (direction == 1 and s.direction == (-1, 0)):
+        #     return score
+        # elif (direction == 2 and s.direction == ( 0, 1)):
+        #     return score
+        # elif (direction == 3 and s.direction == ( 0,-1)):
+        #     return score
 
         if direction == 0:      # LEFT
             s.direction = (-1, 0) 
@@ -324,7 +357,7 @@ def run_game(nn, background):
         # Logic for snack
         if (s.body[0][0]+s.direction[0]*CUBE_WIDTH, s.body[0][1]+s.direction[1]*CUBE_WIDTH) == (snack.body[0], snack.body[1]):
             s.moveSnake( s.direction, snack = True )
-            score += 100
+            score += 50
             moves += NN_MAX_MOVES
 
             # Find all empty cells:
@@ -342,7 +375,7 @@ def run_game(nn, background):
 
         else:
             s.moveSnake( s.direction )
-            score += 0.1
+            score += 1
             moves -= 1
 
         # Logic for losing the game
@@ -372,6 +405,35 @@ def angle_to_snack(snake, snack):
     x = snake.body[0][0] - snack.body[0]
     y = snake.body[0][1] - snack.body[1]
     return math.atan2(y, x)
+
+def append_snack_next(inputs, x):
+    if x == 0:
+        inputs = np.append(inputs, 1)
+        inputs = np.append(inputs, 0)
+        inputs = np.append(inputs, 0)
+        inputs = np.append(inputs, 0)
+    elif x == 1:
+        inputs = np.append(inputs, 0)
+        inputs = np.append(inputs, 1)
+        inputs = np.append(inputs, 0)
+        inputs = np.append(inputs, 0)
+    elif x == 2:
+        inputs = np.append(inputs, 0)
+        inputs = np.append(inputs, 0)
+        inputs = np.append(inputs, 1)
+        inputs = np.append(inputs, 0)
+    elif x == 3:
+        inputs = np.append(inputs, 0)
+        inputs = np.append(inputs, 0)
+        inputs = np.append(inputs, 0)
+        inputs = np.append(inputs, 1)
+    else:
+        inputs = np.append(inputs, 0)
+        inputs = np.append(inputs, 0)
+        inputs = np.append(inputs, 0)
+        inputs = np.append(inputs, 0)
+    return inputs
+        
 
 
 ## Run the main function
