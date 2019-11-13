@@ -21,10 +21,10 @@ Need to add the following:
 
 
 # Global Variables
-SCREEN_WIDTH = 300              # Width of screen (in pixels) 
-CUBE_WIDTH = 30                 # Width of cube (in pixels) 
+SCREEN_WIDTH = 500              # Width of screen (in pixels) 
+CUBE_WIDTH = 20                 # Width of cube (in pixels) 
 NN_MAX_GEN = 50000                # Number of generations to run
-NN_MAX_MOVES = 50              # Restriction on number of moves
+NN_MAX_MOVES = 100              # Restriction on number of moves
 GEN = 0                         # Start at generation 1 
 
 
@@ -242,9 +242,21 @@ def run(config_file):
     p.add_reporter(neat.StdOutReporter(True))
     stats = neat.StatisticsReporter()
     p.add_reporter(stats)
+    p.add_reporter(neat.Checkpointer(200))
 
     # Run for the number of generations
     winner = p.run(eval_genomes, NN_MAX_GEN)
+
+    # Display the winning genome.
+    print('\nBest genome:\n{!s}'.format(winner))
+
+    visualize.draw_net(config, winner, True, node_names=node_names)
+    visualize.plot_stats(stats, ylog=False, view=True)
+    visualize.plot_species(stats, view=True)
+
+    # p = neat.Checkpointer.restore_checkpoint('neat-checkpoint-4')
+    # p.run(eval_genomes, 10)
+    
 
 ## eval_genomes(genomes, config)
 def eval_genomes(genomes, config):
@@ -279,7 +291,7 @@ def eval_genomes(genomes, config):
         while True: 
 
             # Slow down the game
-            if GEN > 500: 
+            if GEN > 2000: 
                 clock.tick(100)
 
             # inputs: what the snake sees
