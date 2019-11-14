@@ -24,8 +24,8 @@ Time will be saved since program will not have to iterate over all individuals w
 
 
 # Global Variables
-SCREEN_HEIGHT = 180             # Height of screen (in pixels) 
-SCREEN_WIDTH = 300             # Width of screen (in pixels) 
+SCREEN_HEIGHT = 720             # Height of screen (in pixels) 
+SCREEN_WIDTH = 1200             # Width of screen (in pixels) 
 SCREEN_WIDTH_i = 60             # With if the individual screens
 
 CUBE_WIDTH = 6                  # Width of cube (in pixels)
@@ -147,6 +147,13 @@ class Snake():
         area_around = np.concatenate((area_around, self.direction))
         return area_around
 
+    def dToSnack(self):
+        '''
+        Find the distance from the head to the snack 
+         * No need to take the sqrt after summing squares, since this will only be used for comparison purposes
+        '''
+        return ( (self.body[0][0] - self.snack_x)**2 + (self.body[0][1] - self.snack_y)**2 ) 
+
 # Functions
 
 ## drawWindow
@@ -251,24 +258,29 @@ def eval_genomes(genomes, config):
 
             if direction == 0:      # LEFT
                 snake.direction = (-1, 0) 
-            elif direction == 1:    # RIGHT 
+            elif direction == 1:    # RIGHT
                 snake.direction = ( 1, 0) 
             elif direction == 2:    # UP
                 snake.direction = ( 0,-1) 
             elif direction == 3:    # DOWN
                 snake.direction = ( 0, 1)
 
-            # Move snake
+            # Move snake (and find distances)
+            d_pre = snake.dToSnack()
             snake.moveSnake(snake.direction)
+            d_post = snake.dToSnack()
 
             # Logic: snack
             if snake.body[0] == [snake.snack_x, snake.snack_y]:
-                ge[i].fitness += NN_MAX_MOVES
+                ge[i].fitness += NN_MAX_MOVES*3
                 snake.moves += NN_MAX_MOVES
                 snake.snack_x, snake.snack_y = snake.makeSnack()
 
             else:
-                ge[i].fitness += 0.1
+                if d_pre > d_post:
+                    ge[i].fitness -= 0.3
+                elif d_post > d_pre: 
+                    ge[i].fitness += 0.1
                 snake.moves -= 1
                 snake.body.pop()
 
