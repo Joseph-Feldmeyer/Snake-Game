@@ -272,13 +272,13 @@ def eval_genomes(genomes, config):
 
             # Logic: snack
             if snake.body[0] == [snake.snack_x, snake.snack_y]:
-                ge[i].fitness += NN_MAX_MOVES*3
+                ge[i].fitness += NN_MAX_MOVES
                 snake.moves += NN_MAX_MOVES
                 snake.snack_x, snake.snack_y = snake.makeSnack()
 
             else:
                 if d_pre > d_post:
-                    ge[i].fitness -= 0.3
+                    ge[i].fitness -= 1
                 elif d_post > d_pre: 
                     ge[i].fitness += 0.1
                 snake.moves -= 1
@@ -292,14 +292,14 @@ def eval_genomes(genomes, config):
                 nets.pop(i)
                 ge.pop(i)
             ## (2): Running into screen edge
-            if snake.body[0] not in [ [snake.start_x + x*CUBE_WIDTH, snake.start_y + y*CUBE_WIDTH]
+            elif snake.body[0] not in [ [snake.start_x + x*CUBE_WIDTH, snake.start_y + y*CUBE_WIDTH]
                         for x in range(NUM_CUBES)
                         for y in range(NUM_CUBES) ]:
                 snakes.pop(i)
                 nets.pop(i)
                 ge.pop(i)
             ## (3): out of moves
-            if snake.moves <= 0:
+            elif snake.moves <= 0:
                 snakes.pop(i)
                 nets.pop(i)
                 ge.pop(i)
